@@ -12,10 +12,9 @@ namespace FlightComputer.lib.Serial
     {
         private readonly SerialPort _serial;
 
-        public SerialComms(string portName)
+        public SerialComms()
         {
             _serial = new SerialPort();
-            _serial.PortName = portName;
             _serial.BaudRate = 9600;
         }
 
@@ -28,6 +27,21 @@ namespace FlightComputer.lib.Serial
             //_serial.Close();
         }
         
-        private void InitSerialPort() { _serial.Open(); }
+        private void InitSerialPort() {
+            if (_serial.PortName == null || _serial.PortName == string.Empty)
+                throw new Exception("No Port Name was provided Serial Connectivity...");
+
+            _serial.Open();
+        }
+
+        public string GetPortName()
+        {
+            return _serial.PortName;
+        }
+
+        public void SetPortName(string portName)
+        {
+            _serial.PortName = portName;
+        }
     }
 }

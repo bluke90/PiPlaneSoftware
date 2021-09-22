@@ -7,40 +7,44 @@ using System.Threading.Tasks;
 using FlightComputer.lib.Control;
 using FlightComputer.lib.Network;
 using FlightComputer.lib.Serial;
+using System.Threading;
 
 namespace FlightComputer
 {
     class Program
     {
-        public static void Main(string[] args)
+        public static Task Main(string[] args)
         {
-            using IHost host = CreateHostBuilder(args).Build();
-            var services = host.Services;
-            using IServiceScope serviceScope = services.CreateScope();
-            IServiceProvider provider = serviceScope.ServiceProvider;
+            // Configure Services
+            var serviceCollection = new ServiceCollection();
+            ConfigureServices(serviceCollection);
+            IServiceProvider provider = serviceCollection.BuildServiceProvider();
 
-            var lfactory = provider.GetRequiredService<LoggerFactory>();
-            var logging = lfactory.CreateLogger("Program");
-            logging.LogInformation("Starting Flight Computer... Please Wait...");
+
             Console.WriteLine("Initiating Flight Computer...");
-            var Serial = new SerialComms("COM3"); // Communicate with Flight Controller
-            var Network = new NetworkModel(); // Communicate with Base
-            var Control = new Control(Network, Serial);
-            Control.StartControlThread();
-            
+            var CommService = provider.GetService<CommunitcationService>();
+            var Serial = provider.GetService<SerialComms>();
+            var Network = provider.GetService<NetworkModel>();
+            var Control = provider.GetService<Control>();
+
+            CommService.Start();
+
+            while(true)
+            {
+                Console.WriteLine($"Flight Computer Active at {DateTime.UtcNow}");
+                Thread.Sleep(1500);
+            }
+            throw new ApplicationException();
         }
 
-        public static IHostBuilder CreateHostBuilder(string[] args)
+        private static void ConfigureServices(IServiceCollection services)
         {
-            var host = new HostBuilder()
-                .ConfigureLogging(logging =>
-                {
-                    logging.AddConsole();
-                }).ConfigureServices(services => 
-                { 
-                    services.AddLogging();
-                });
-            return host;
+            // IServiceCollection
+            services.AddLogging(configure => configure.AddConsole())
+                .AddSingleton<CommunitcationService>()
+                .AddSingleton<SerialComms>()
+                .AddSingleton<NetworkModel>()
+                .AddSingleton<Control>();
         }
 
    

@@ -1,5 +1,6 @@
 ﻿using FlightComputer.lib.Network;
 using FlightComputer.lib.Serial;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -20,8 +21,9 @@ namespace FlightComputer.lib.Control
 
         private readonly NetworkModel _network;
         private readonly SerialComms _serial;
+        private readonly ILogger<Control> _logger;
 
-        public Control(NetworkModel network, SerialComms serial) { _serial = serial; _network = network; }
+        public Control(NetworkModel network, SerialComms serial, ILogger<Control> logger) { _serial = serial; _network = network; _logger = logger; }
 
         public void StartControlThread()
         {
