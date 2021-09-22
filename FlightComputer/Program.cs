@@ -1,45 +1,48 @@
 ﻿using FlightComputer.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Threading.Tasks;
+using FlightComputer.lib.Control;
+using FlightComputer.lib.Network;
+using FlightComputer.lib.Serial;
 
 namespace FlightComputer
 {
     class Program
     {
-        static Task Main(string[] args)
+        public static void Main(string[] args)
         {
             using IHost host = CreateHostBuilder(args).Build();
-
-            ExemplifyScoping(host.Services, "Scope 1");
-            ExemplifyScoping(host.Services, "Scope 2");
-
-            return host.RunAsync();
-        }
-
-        static IHostBuilder CreateHostBuilder(string[] args) =>
-            Host.CreateDefaultBuilder(args)
-                .ConfigureServices((_, services) =>
-                    services.AddTransient<ITransientOperation, DefaultOperation>()
-                            .AddScoped<IScopedOperation, DefaultOperation>()
-                            .AddSingleton<ISingletonOperation, DefaultOperation>()
-                            .AddTransient<OperationLogger>());
-
-        static void ExemplifyScoping(IServiceProvider services, string scope)
-        {
+            var services = host.Services;
             using IServiceScope serviceScope = services.CreateScope();
             IServiceProvider provider = serviceScope.ServiceProvider;
 
-            OperationLogger logger = provider.GetRequiredService<OperationLogger>();
-            logger.LogOperations($"{scope}-Call 1 .GetRequiredService<OperationLogger>()");
-
-            Console.WriteLine("...");
-
-            logger = provider.GetRequiredService<OperationLogger>();
-            logger.LogOperations($"{scope}-Call 2 .GetRequiredService<OperationLogger>()");
-
-            Console.WriteLine();
+            var lfactory = provider.GetRequiredService<LoggerFactory>();
+            var logging = lfactory.CreateLogger("Program");
+            logging.LogInformation("Starting Flight Computer... Please Wait...");
+            Console.WriteLine("Initiating Flight Computer...");
+            var Serial = new SerialComms("COM3"); // Communicate with Flight Controller
+            var Network = new NetworkModel(); // Communicate with Base
+            var Control = new Control(Network, Serial);
+            Control.StartControlThread();
+            
         }
+
+        public static IHostBuilder CreateHostBuilder(string[] args)
+        {
+            var host = new HostBuilder()
+                .ConfigureLogging(logging =>
+                {
+                    logging.AddConsole();
+                }).ConfigureServices(services => 
+                { 
+                    services.AddLogging();
+                });
+            return host;
+        }
+
+   
     }
 }

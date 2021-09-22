@@ -1,4 +1,5 @@
 ﻿using FlightComputer.lib.Network;
+using FlightComputer.lib.Serial;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -18,33 +19,29 @@ namespace FlightComputer.lib.Control
         private float YawOutput { get; set; }
 
         private readonly NetworkModel _network;
+        private readonly SerialComms _serial;
 
-        public Control(NetworkModel network) { _network = network; }
+        public Control(NetworkModel network, SerialComms serial) { _serial = serial; _network = network; }
 
         public void StartControlThread()
         {
-            Thread thread = new Thread(ControlInputThread); thread.Start();
-            Thread thread2 = new Thread(ControlThread); thread2.Start();
+            Thread thread = new Thread(ControlThread); thread.Start();
         }
-        private void ControlInputThread()
+        private Task CheckControlInput()
         {
-            float Roll, Pitch, Yaw, throttle;
+            float throttle;
+            var check = _network.DataQueue.Peek();
+            var checksplit = check.Split("||");
 
-            while(true)
+            if (checksplit[0] == "control")
             {
-                Thread.Sleep(200);
-                var check = _network.DataQueue.Peek();
-                var checksplit = check.Split("||");
-
-                if (checksplit[0] != "control") continue;
-
                 _network.DataQueue.Dequeue();
-                Roll = Convert.ToInt32(checksplit[1]);
-                Pitch = Convert.ToInt32(checksplit[2]);
-                Yaw = Convert.ToInt32(checksplit[3]);
-                throttle = Convert.ToInt32(checksplit[4]);    
-
+                RollInput = Convert.ToInt32(checksplit[1]);
+                PitchInput = Convert.ToInt32(checksplit[2]);
+                YawInput = Convert.ToInt32(checksplit[3]);
+                throttle = Convert.ToInt32(checksplit[4]);
             }
+            return Task.CompletedTask;
         }
 
         private void ControlThread()
@@ -55,14 +52,16 @@ namespace FlightComputer.lib.Control
             LastYaw = YawInput;
             while(true)
             {
-                Thread.Sleep(150);
+                Thread.Sleep(200);
+                var inputCheck = CheckControlInput();
+                inputCheck.Wait();
                 if(!WithinMargin(RollInput, LastRoll))
                 {
-
+                    
                 }
                 if(!WithinMargin(PitchInput, LastPitch))
                 {
-
+                    _serial.Send($"control||pitch||{PitchInput}");
                 }
                 if(!WithinMargin(YawInput, LastYaw))
                 {
